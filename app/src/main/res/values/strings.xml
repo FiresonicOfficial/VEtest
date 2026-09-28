@@ -1,0 +1,10 @@
+<resources>
+    <string name="app_name">KlipStudio</string>
+    <string name="new_project">Yeni Proje</string>
+    <string name="import_video">Video Ekle</string>
+    <string name="sample_video">Örnek Video İle Başla</string>
+    <string name="trim">Kırp</string>
+    <string name="merge">Birleştir</string>
+    <string name="speed">Hız &amp; Yavaşlatma</string>
+    <string name="export">Telefona Kaydet</string>
+</resources>
