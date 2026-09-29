@@ -69,6 +69,7 @@ import com.example.ui.components.ClipTimeline
 import com.example.ui.components.EditorToolPanels
 import com.example.ui.components.ExportDialog
 import com.example.ui.components.ProjectHistorySheet
+import com.example.ui.components.ReorderAndMergeDialog
 import com.example.ui.components.VideoPlayerView
 import com.example.ui.theme.PrimaryNeon
 import com.example.ui.theme.SecondaryCyan
@@ -95,6 +96,9 @@ fun VideoEditorScreen(
     var showTitleDialog by remember { mutableStateOf(false) }
     var showHistorySheet by remember { mutableStateOf(false) }
     val historySheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    var showReorderSheet by remember { mutableStateOf(false) }
+    val reorderSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     // Android standard zero-permission Photo/Video Picker (Multiple)
     val multipleVideoPickerLauncher = rememberLauncherForActivityResult(
@@ -248,7 +252,10 @@ fun VideoEditorScreen(
                         },
                         onAddSampleClick = {
                             viewModel.addSampleClip(context, isSecondClip = true)
-                        }
+                        },
+                        onOpenReorderDialog = { showReorderSheet = true },
+                        onDuplicateClip = { viewModel.duplicateClip(it) },
+                        onSplitClip = { viewModel.splitCurrentClipAtPlayhead() }
                     )
 
                     // Specialized Editing Tools (Trim, Speed / Slow-Mo, Filters, Audio, Transform, Text, Ratio)
@@ -266,7 +273,12 @@ fun VideoEditorScreen(
                             onRotateClick = { viewModel.rotateClip() },
                             onMirrorClick = { viewModel.toggleMirror() },
                             onTextChange = { text, color, pos -> viewModel.updateTextOverlay(text, color, pos) },
-                            onAspectRatioChange = { viewModel.setAspectRatio(it) }
+                            onAspectRatioChange = { viewModel.setAspectRatio(it) },
+                            onSplitClick = { viewModel.splitCurrentClipAtPlayhead() },
+                            onExtractSlowMoSegment = { start, end, speed ->
+                                viewModel.extractAndSlowDownSegment(selectedIndex, start, end, speed)
+                            },
+                            onDuplicateClick = { viewModel.duplicateClip(selectedIndex) }
                         )
                     }
                 }
@@ -277,6 +289,19 @@ fun VideoEditorScreen(
                 ExportDialog(
                     exportState = exportState,
                     onDismiss = { viewModel.dismissExport() }
+                )
+            }
+
+            // Reorder and Merge Dialog
+            if (showReorderSheet) {
+                ReorderAndMergeDialog(
+                    clips = clips,
+                    sheetState = reorderSheetState,
+                    onDismiss = { showReorderSheet = false },
+                    onMoveClip = { from, to -> viewModel.moveClip(from, to) },
+                    onDuplicateClip = { viewModel.duplicateClip(it) },
+                    onDeleteClip = { viewModel.removeClip(it) },
+                    onStartExport = { viewModel.startExport(context) }
                 )
             }
 

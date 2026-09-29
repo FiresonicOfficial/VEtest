@@ -90,6 +90,9 @@ fun EditorToolPanels(
     onMirrorClick: () -> Unit,
     onTextChange: (text: String, color: Long, position: TextPosition) -> Unit,
     onAspectRatioChange: (AspectRatioType) -> Unit,
+    onSplitClick: (() -> Unit)? = null,
+    onExtractSlowMoSegment: ((startMs: Long, endMs: Long, speed: Float) -> Unit)? = null,
+    onDuplicateClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
@@ -142,7 +145,9 @@ fun EditorToolPanels(
                 EditorTab.TRIM -> {
                     TrimScrubber(
                         clip = clip,
-                        onTrimChange = onTrimChange
+                        onTrimChange = onTrimChange,
+                        onSplitCurrentPlayhead = onSplitClick,
+                        onDuplicateClip = onDuplicateClick
                     )
                 }
 
@@ -150,7 +155,8 @@ fun EditorToolPanels(
                     SpeedAndSlowMoPanel(
                         clip = clip,
                         onSpeedChange = onSpeedChange,
-                        onSlowMoChange = onSlowMoChange
+                        onSlowMoChange = onSlowMoChange,
+                        onExtractSlowMoSegment = onExtractSlowMoSegment
                     )
                 }
 
@@ -202,7 +208,8 @@ fun EditorToolPanels(
 fun SpeedAndSlowMoPanel(
     clip: VideoClip,
     onSpeedChange: (Float) -> Unit,
-    onSlowMoChange: (enabled: Boolean, startMs: Long?, endMs: Long?, speed: Float?) -> Unit
+    onSlowMoChange: (enabled: Boolean, startMs: Long?, endMs: Long?, speed: Float?) -> Unit,
+    onExtractSlowMoSegment: ((startMs: Long, endMs: Long, speed: Float) -> Unit)? = null
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
@@ -263,13 +270,13 @@ fun SpeedAndSlowMoPanel(
                 ) {
                     Column {
                         Text(
-                            text = "Belirli Bölümü Yavaşlat (Ağır Çekim)",
+                            text = "Videodaki Kısmı Ayır ve Yavaşlat",
                             color = AccentAmber,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "Videonun seçtiğin saniyeleri yavaşlar",
+                            text = "Seçilen saniyeleri ayrı klip yapıp ağır çekim uygular",
                             color = Color.LightGray,
                             fontSize = 10.sp
                         )
@@ -315,11 +322,46 @@ fun SpeedAndSlowMoPanel(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text("Bölüm Hızı:", color = Color.LightGray, fontSize = 11.sp)
-                        listOf(0.25f, 0.5f).forEach { s ->
+                        listOf(0.25f, 0.5f, 0.75f).forEach { s ->
                             FilterChip(
                                 selected = clip.slowMoSpeed == s,
                                 onClick = { onSlowMoChange(true, null, null, s) },
                                 label = { Text("${s}x", fontSize = 11.sp) }
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Extract as independent clip button
+                    if (onExtractSlowMoSegment != null) {
+                        androidx.compose.material3.Button(
+                            onClick = {
+                                onExtractSlowMoSegment.invoke(
+                                    clip.slowMoStartMs,
+                                    clip.slowMoEndMs,
+                                    clip.slowMoSpeed
+                                )
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("extract_and_slow_segment_button"),
+                            colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                                containerColor = AccentAmber,
+                                contentColor = Color.Black
+                            )
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.ContentCut,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = Color.Black
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Bu Kısmı Kesip Ayır ve Yavaşlat (Ayrı Parça Yap)",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 11.sp
                             )
                         }
                     }

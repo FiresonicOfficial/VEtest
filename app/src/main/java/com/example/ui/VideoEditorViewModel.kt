@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.io.File
+import java.util.UUID
 
 data class ExportUiState(
     val isExporting: Boolean = false,
@@ -166,6 +167,129 @@ class VideoEditorViewModel(application: Application) : AndroidViewModel(applicat
             list.add(toIndex, item)
             _clips.value = list
             _selectedClipIndex.value = toIndex
+        }
+    }
+
+    fun splitCurrentClipAtPlayhead(): Boolean {
+        val idx = _selectedClipIndex.value
+        val clip = _clips.value.getOrNull(idx) ?: return false
+        val pos = _playbackPositionMs.value
+        return splitClipAt(idx, pos)
+    }
+
+    fun splitClipAt(index: Int, splitTimeMs: Long): Boolean {
+        val list = _clips.value.toMutableList()
+        val clip = list.getOrNull(index) ?: return false
+
+        // Ensure split point is inside trim range with at least 200ms padding on both sides
+        val minSplit = clip.trimStartMs + 200L
+        val maxSplit = clip.trimEndMs - 200L
+        if (minSplit >= maxSplit) return false
+        val actualSplit = splitTimeMs.coerceIn(minSplit, maxSplit)
+
+        val part1 = clip.copy(
+            id = UUID.randomUUID().toString(),
+            title = "${clip.title} (1. Parça)",
+            trimStartMs = clip.trimStartMs,
+            trimEndMs = actualSplit
+        )
+        val part2 = clip.copy(
+            id = UUID.randomUUID().toString(),
+            title = "${clip.title} (2. Parça)",
+            trimStartMs = actualSplit,
+            trimEndMs = clip.trimEndMs
+        )
+
+        list.removeAt(index)
+        list.add(index, part2)
+        list.add(index, part1)
+        _clips.value = list
+        _selectedClipIndex.value = index
+        _playbackPositionMs.value = part1.trimStartMs
+        return true
+    }
+
+    fun extractAndSlowDownSegment(
+        index: Int,
+        segmentStartMs: Long,
+        segmentEndMs: Long,
+        slowSpeed: Float = 0.5f
+    ): Boolean {
+        val list = _clips.value.toMutableList()
+        val clip = list.getOrNull(index) ?: return false
+
+        val sStart = segmentStartMs.coerceIn(clip.trimStartMs, clip.trimEndMs)
+        val sEnd = segmentEndMs.coerceIn(sStart + 200L, clip.trimEndMs)
+        if (sEnd <= sStart) return false
+
+        val newClips = mutableListOf<VideoClip>()
+
+        // 1. Part before the slow-motion section (normal speed)
+        if (sStart > clip.trimStartMs + 100L) {
+            newClips.add(
+                clip.copy(
+                    id = UUID.randomUUID().toString(),
+                    title = "${clip.title} (Öncesi)",
+                    trimStartMs = clip.trimStartMs,
+                    trimEndMs = sStart
+                )
+            )
+        }
+
+        // 2. The isolated slow-motion segment
+        val speedLabel = when (slowSpeed) {
+            0.25f -> "0.25x Süper Yavaş"
+            0.5f -> "0.5x Ağır Çekim"
+            0.75f -> "0.75x Hafif Yavaş"
+            else -> "${slowSpeed}x Ağır Çekim"
+        }
+        val slowClip = clip.copy(
+            id = UUID.randomUUID().toString(),
+            title = "${clip.title} [$speedLabel]",
+            trimStartMs = sStart,
+            trimEndMs = sEnd,
+            playbackSpeed = slowSpeed
+        )
+        newClips.add(slowClip)
+
+        // 3. Part after the slow-motion section (normal speed)
+        if (clip.trimEndMs > sEnd + 100L) {
+            newClips.add(
+                clip.copy(
+                    id = UUID.randomUUID().toString(),
+                    title = "${clip.title} (Sonrası)",
+                    trimStartMs = sEnd,
+                    trimEndMs = clip.trimEndMs
+                )
+            )
+        }
+
+        list.removeAt(index)
+        list.addAll(index, newClips)
+        _clips.value = list
+
+        val slowIndex = list.indexOfFirst { it.id == slowClip.id }
+        _selectedClipIndex.value = if (slowIndex >= 0) slowIndex else index
+        _playbackPositionMs.value = slowClip.trimStartMs
+        return true
+    }
+
+    fun duplicateClip(index: Int) {
+        val list = _clips.value.toMutableList()
+        val clip = list.getOrNull(index) ?: return
+        val duplicate = clip.copy(
+            id = UUID.randomUUID().toString(),
+            title = "${clip.title} (Kopya)"
+        )
+        list.add(index + 1, duplicate)
+        _clips.value = list
+        _selectedClipIndex.value = index + 1
+    }
+
+    fun reorderClips(newOrder: List<VideoClip>) {
+        _clips.value = newOrder
+        if (_selectedClipIndex.value !in newOrder.indices) {
+            _selectedClipIndex.value = 0
         }
     }
 

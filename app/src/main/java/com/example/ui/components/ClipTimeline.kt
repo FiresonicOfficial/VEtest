@@ -23,8 +23,11 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.Speed
+import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -62,6 +65,9 @@ fun ClipTimeline(
     onDeleteClip: (Int) -> Unit,
     onAddVideoClick: () -> Unit,
     onAddSampleClick: () -> Unit,
+    onOpenReorderDialog: (() -> Unit)? = null,
+    onDuplicateClip: ((Int) -> Unit)? = null,
+    onSplitClip: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -94,18 +100,30 @@ fun ClipTimeline(
                 )
             }
 
-            if (clips.size > 1) {
-                Surface(
-                    color = MaterialTheme.colorScheme.primaryContainer,
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text(
-                        text = "Birleştirilecek: ${clips.size} parça",
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                    )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                if (onOpenReorderDialog != null && clips.size > 1) {
+                    FilledTonalButton(
+                        onClick = onOpenReorderDialog,
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                        modifier = Modifier
+                            .height(28.dp)
+                            .testTag("timeline_reorder_merge_button")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.SwapVert,
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "Sırala & Birleştir",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
         }
@@ -128,7 +146,8 @@ fun ClipTimeline(
                     onClick = { onSelectClip(index) },
                     onMoveLeft = { if (index > 0) onMoveClip(index, index - 1) },
                     onMoveRight = { if (index < clips.size - 1) onMoveClip(index, index + 1) },
-                    onDelete = { onDeleteClip(index) }
+                    onDelete = { onDeleteClip(index) },
+                    onDuplicate = { onDuplicateClip?.invoke(index) }
                 )
             }
 
@@ -189,7 +208,8 @@ fun ClipItemCard(
     onClick: () -> Unit,
     onMoveLeft: () -> Unit,
     onMoveRight: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onDuplicate: (() -> Unit)? = null
 ) {
     val borderColor = if (isSelected) MaterialTheme.colorScheme.primary else StudioBorder
     val borderWidth = if (isSelected) 2.dp else 1.dp
@@ -257,7 +277,32 @@ fun ClipItemCard(
                 )
 
                 // Speed or SlowMo tag
-                if (clip.hasSlowMoSection) {
+                if (clip.playbackSpeed < 1.0f) {
+                    Surface(
+                        color = AccentAmber.copy(alpha = 0.25f),
+                        shape = RoundedCornerShape(4.dp),
+                        border = androidx.compose.foundation.BorderStroke(0.5.dp, AccentAmber)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Speed,
+                                contentDescription = null,
+                                tint = AccentAmber,
+                                modifier = Modifier.size(10.dp)
+                            )
+                            Spacer(modifier = Modifier.width(2.dp))
+                            Text(
+                                text = "${clip.playbackSpeed}x",
+                                color = AccentAmber,
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                } else if (clip.hasSlowMoSection) {
                     Surface(
                         color = AccentAmber.copy(alpha = 0.2f),
                         shape = RoundedCornerShape(4.dp)
@@ -281,7 +326,7 @@ fun ClipItemCard(
                             )
                         }
                     }
-                } else if (clip.playbackSpeed != 1.0f) {
+                } else if (clip.playbackSpeed > 1.0f) {
                     Surface(
                         color = MaterialTheme.colorScheme.primaryContainer,
                         shape = RoundedCornerShape(4.dp)
@@ -299,7 +344,7 @@ fun ClipItemCard(
 
             Spacer(modifier = Modifier.weight(1f))
 
-            // Reorder controls (< and >)
+            // Reorder controls (< and >) and duplicate
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -316,6 +361,17 @@ fun ClipItemCard(
                     }
                 } else {
                     Spacer(modifier = Modifier.size(20.dp))
+                }
+
+                if (onDuplicate != null) {
+                    IconButton(onClick = onDuplicate, modifier = Modifier.size(20.dp)) {
+                        Icon(
+                            imageVector = Icons.Default.ContentCopy,
+                            contentDescription = "Kopyala",
+                            tint = SecondaryCyan,
+                            modifier = Modifier.size(12.dp)
+                        )
+                    }
                 }
 
                 if (index < totalCount - 1) {

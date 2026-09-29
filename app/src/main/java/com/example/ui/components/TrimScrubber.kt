@@ -42,6 +42,8 @@ import com.example.ui.theme.StudioBorder
 fun TrimScrubber(
     clip: VideoClip,
     onTrimChange: (startMs: Long, endMs: Long) -> Unit,
+    onSplitCurrentPlayhead: (() -> Unit)? = null,
+    onDuplicateClip: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -188,17 +190,41 @@ fun TrimScrubber(
                     }
                 }
 
-                IconButton(
-                    onClick = {
-                        onTrimChange(0L, clip.durationMs)
-                    },
-                    modifier = Modifier.size(32.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Refresh,
-                        contentDescription = "Sıfırla",
-                        tint = Color.LightGray
-                    )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (onSplitCurrentPlayhead != null) {
+                        androidx.compose.material3.Button(
+                            onClick = onSplitCurrentPlayhead,
+                            modifier = Modifier
+                                .height(32.dp)
+                                .testTag("split_clip_playhead_button"),
+                            colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.secondary
+                            ),
+                            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.ContentCut,
+                                contentDescription = null,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Bu Noktadan Kes", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+                        Spacer(modifier = Modifier.width(6.dp))
+                    }
+
+                    IconButton(
+                        onClick = {
+                            onTrimChange(0L, clip.durationMs)
+                        },
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = "Sıfırla",
+                            tint = Color.LightGray
+                        )
+                    }
                 }
             }
         }
