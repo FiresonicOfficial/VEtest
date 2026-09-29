@@ -6,12 +6,15 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -26,6 +29,8 @@ import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Movie
+import androidx.compose.material.icons.filled.Redo
+import androidx.compose.material.icons.filled.Undo
 import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Badge
@@ -65,17 +70,23 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.ui.components.ClipTimeline
+import com.example.data.model.AspectRatioType
 import com.example.ui.components.EditorToolPanels
 import com.example.ui.components.ExportDialog
+import com.example.ui.components.FilterGalleryPanel
+import com.example.ui.components.MediaLibraryPanel
 import com.example.ui.components.ProjectHistorySheet
 import com.example.ui.components.ReorderAndMergeDialog
+import com.example.ui.components.StudioTimeline
 import com.example.ui.components.VideoPlayerView
 import com.example.ui.theme.PrimaryNeon
+import com.example.ui.theme.PurpleBackdropEnd
+import com.example.ui.theme.PurpleBackdropMid
+import com.example.ui.theme.PurpleBackdropStart
 import com.example.ui.theme.SecondaryCyan
-import com.example.ui.theme.StudioBorder
-import com.example.ui.theme.StudioCardBg
-import com.example.ui.theme.StudioDarkBg
+import com.example.ui.theme.StudioCornerBracket
+import com.example.ui.theme.StudioLilacBorder
+import com.example.ui.theme.StudioPurplePrimary
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -89,6 +100,7 @@ fun VideoEditorScreen(
     val projectTitle by viewModel.projectTitle.collectAsState()
     val aspectRatio by viewModel.aspectRatio.collectAsState()
     val isPlaying by viewModel.isPlaying.collectAsState()
+    val playbackPosition by viewModel.playbackPositionMs.collectAsState()
     val isGeneratingSample by viewModel.isGeneratingSample.collectAsState()
     val exportState by viewModel.exportState.collectAsState()
     val exportedProjects by viewModel.exportedProjects.collectAsState()
@@ -118,213 +130,401 @@ fun VideoEditorScreen(
 
     val activeClip = viewModel.currentClip
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .clickable { showTitleDialog = true }
-                            .padding(vertical = 4.dp)
-                    ) {
-                        Text(
-                            text = projectTitle,
-                            color = Color.White,
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f, fill = false)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Icon(
-                            imageVector = Icons.Default.Edit,
-                            contentDescription = "Başlığı Değiştir",
-                            tint = Color.LightGray,
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
-                },
-                actions = {
-                    // History button with saved videos count badge
-                    IconButton(
-                        onClick = { showHistorySheet = true },
-                        modifier = Modifier.testTag("history_button")
-                    ) {
-                        BadgedBox(
-                            badge = {
-                                if (exportedProjects.isNotEmpty()) {
-                                    Badge(containerColor = MaterialTheme.colorScheme.primary) {
-                                        Text("${exportedProjects.size}")
+    // Outer Purple Ambient Glow Backdrop (Matching image.png)
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(
+                brush = Brush.linearGradient(
+                    listOf(PurpleBackdropStart, PurpleBackdropMid, PurpleBackdropEnd)
+                )
+            )
+            .padding(6.dp)
+    ) {
+        // Rounded Studio Editor Window Container
+        Surface(
+            shape = RoundedCornerShape(14.dp),
+            color = MaterialTheme.colorScheme.background,
+            shadowElevation = 10.dp,
+            modifier = Modifier.fillMaxSize()
+        ) {
+            Scaffold(
+                topBar = {
+                    TopAppBar(
+                        title = {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                // Purple Studio App Logo Tile (from image.png)
+                                Box(
+                                    modifier = Modifier
+                                        .size(30.dp)
+                                        .background(StudioPurplePrimary, RoundedCornerShape(6.dp)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Movie,
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+
+                                // Project Title with inline edit
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier
+                                        .clickable { showTitleDialog = true }
+                                        .padding(vertical = 4.dp)
+                                ) {
+                                    Text(
+                                        text = projectTitle,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Icon(
+                                        imageVector = Icons.Default.Edit,
+                                        contentDescription = "Düzenle",
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                }
+
+                                // Undo / Redo Icons (from image.png)
+                                Row(
+                                    modifier = Modifier.padding(start = 6.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                                ) {
+                                    IconButton(
+                                        onClick = { /* undo */ },
+                                        modifier = Modifier.size(26.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Undo,
+                                            contentDescription = "Geri Al",
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.size(15.dp)
+                                        )
+                                    }
+                                    IconButton(
+                                        onClick = { /* redo */ },
+                                        modifier = Modifier.size(26.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Redo,
+                                            contentDescription = "Yinele",
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.size(15.dp)
+                                        )
                                     }
                                 }
                             }
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.VideoLibrary,
-                                contentDescription = "Kaydedilenler",
-                                tint = Color.White
-                            )
-                        }
-                    }
-
-                    // Primary Export Action Button
-                    if (clips.isNotEmpty()) {
-                        Button(
-                            onClick = { viewModel.startExport(context) },
-                            modifier = Modifier
-                                .padding(end = 8.dp)
-                                .height(38.dp)
-                                .testTag("export_button"),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.primary
-                            ),
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Download,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Kaydet", fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = StudioDarkBg
-                )
-            )
-        },
-        containerColor = StudioDarkBg,
-        modifier = modifier.fillMaxSize()
-    ) { innerPadding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-        ) {
-            if (clips.isEmpty()) {
-                // Empty state: Hero view with quick add options
-                EmptyStateView(
-                    isGenerating = isGeneratingSample,
-                    onPickVideos = {
-                        multipleVideoPickerLauncher.launch(
-                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly)
-                        )
-                    },
-                    onAddSample = {
-                        viewModel.addSampleClip(context, isSecondClip = false)
-                    }
-                )
-            } else {
-                // Editor Main Layout
-                Column(modifier = Modifier.fillMaxSize()) {
-                    // Video Player Preview Area
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxWidth()
-                            .background(Color.Black),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        VideoPlayerView(
-                            clip = activeClip,
-                            aspectRatio = aspectRatio,
-                            isPlaying = isPlaying,
-                            onPlayPauseToggle = { viewModel.setIsPlaying(it) },
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
-
-                    // Timeline row (Clips for merging & reordering)
-                    ClipTimeline(
-                        clips = clips,
-                        selectedIndex = selectedIndex,
-                        onSelectClip = { viewModel.selectClip(it) },
-                        onMoveClip = { from, to -> viewModel.moveClip(from, to) },
-                        onDeleteClip = { viewModel.removeClip(it) },
-                        onAddVideoClick = {
-                            singleVideoPickerLauncher.launch(
-                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly)
-                            )
                         },
-                        onAddSampleClick = {
-                            viewModel.addSampleClip(context, isSecondClip = true)
+                        actions = {
+                            // History button with count badge
+                            IconButton(
+                                onClick = { showHistorySheet = true },
+                                modifier = Modifier.testTag("history_button")
+                            ) {
+                                BadgedBox(
+                                    badge = {
+                                        if (exportedProjects.isNotEmpty()) {
+                                            Badge(containerColor = StudioPurplePrimary) {
+                                                Text("${exportedProjects.size}")
+                                            }
+                                        }
+                                    }
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.VideoLibrary,
+                                        contentDescription = "Kaydedilenler",
+                                        tint = MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+                            }
+
+                            // Primary Signature Purple "Dışa Aktar" Export Button (from image.png)
+                            if (clips.isNotEmpty()) {
+                                Button(
+                                    onClick = { viewModel.startExport(context) },
+                                    modifier = Modifier
+                                        .padding(end = 8.dp)
+                                        .height(34.dp)
+                                        .testTag("export_button"),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = StudioPurplePrimary
+                                    ),
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Download,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("Dışa Aktar", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
                         },
-                        onOpenReorderDialog = { showReorderSheet = true },
-                        onDuplicateClip = { viewModel.duplicateClip(it) },
-                        onSplitClip = { viewModel.splitCurrentClipAtPlayhead() }
+                        colors = TopAppBarDefaults.topAppBarColors(
+                            containerColor = MaterialTheme.colorScheme.surface
+                        )
                     )
+                },
+                containerColor = MaterialTheme.colorScheme.background
+            ) { innerPadding ->
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding)
+                ) {
+                    if (clips.isEmpty()) {
+                        // Empty state: Hero view with quick add options
+                        EmptyStateView(
+                            isGenerating = isGeneratingSample,
+                            onPickVideos = {
+                                multipleVideoPickerLauncher.launch(
+                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly)
+                                )
+                            },
+                            onAddSample = {
+                                viewModel.addSampleClip(context, isSecondClip = false)
+                            }
+                        )
+                    } else {
+                        // Responsive Layout
+                        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                            val isWideScreen = maxWidth > 720.dp
 
-                    // Specialized Editing Tools (Trim, Speed / Slow-Mo, Filters, Audio, Transform, Text, Ratio)
-                    activeClip?.let { current ->
-                        EditorToolPanels(
-                            clip = current,
-                            aspectRatio = aspectRatio,
-                            onTrimChange = { start, end -> viewModel.updateTrim(start, end) },
-                            onSpeedChange = { speed -> viewModel.updatePlaybackSpeed(speed) },
-                            onSlowMoChange = { enabled, start, end, speed ->
-                                viewModel.updateSlowMotion(enabled, start, end, speed)
+                            if (isWideScreen) {
+                                // 3-Column Studio Layout matching image.png exactly
+                                Row(modifier = Modifier.fillMaxSize()) {
+                                    // Left: Media Library Drawer
+                                    Box(
+                                        modifier = Modifier
+                                            .width(220.dp)
+                                            .fillMaxHeight()
+                                            .border(1.dp, StudioLilacBorder)
+                                    ) {
+                                        MediaLibraryPanel(
+                                            clips = clips,
+                                            selectedIndex = selectedIndex,
+                                            onSelectClip = { viewModel.selectClip(it) },
+                                            onAddVideoClick = {
+                                                singleVideoPickerLauncher.launch(
+                                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly)
+                                                )
+                                            },
+                                            onAddSampleClick = {
+                                                viewModel.addSampleClip(context, isSecondClip = true)
+                                            }
+                                        )
+                                    }
+
+                                    // Center: Video Player Preview & Multi-track Timeline
+                                    Column(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .fillMaxHeight()
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .fillMaxWidth()
+                                                .background(Color.Black),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            VideoPlayerView(
+                                                clip = activeClip,
+                                                aspectRatio = aspectRatio,
+                                                isPlaying = isPlaying,
+                                                onPlayPauseToggle = { viewModel.setIsPlaying(it) },
+                                                onQuickCutClick = { viewModel.splitCurrentClipAtPlayhead() },
+                                                onQuickSpeedClick = { /* speed toggle */ },
+                                                onQuickAspectClick = {
+                                                    val nextRatio = when (aspectRatio) {
+                                                        AspectRatioType.ORIGINAL -> AspectRatioType.RATIO_16_9
+                                                        AspectRatioType.RATIO_16_9 -> AspectRatioType.RATIO_9_16
+                                                        AspectRatioType.RATIO_9_16 -> AspectRatioType.RATIO_1_1
+                                                        AspectRatioType.RATIO_1_1 -> AspectRatioType.ORIGINAL
+                                                    }
+                                                    viewModel.setAspectRatio(nextRatio)
+                                                },
+                                                modifier = Modifier.fillMaxSize()
+                                            )
+                                        }
+
+                                        StudioTimeline(
+                                            clips = clips,
+                                            selectedIndex = selectedIndex,
+                                            playbackPositionMs = playbackPosition,
+                                            isPlaying = isPlaying,
+                                            onPlayPauseToggle = { viewModel.setIsPlaying(it) },
+                                            onSelectClip = { viewModel.selectClip(it) },
+                                            onMoveClip = { from, to -> viewModel.moveClip(from, to) },
+                                            onDeleteClip = { viewModel.removeClip(it) },
+                                            onDuplicateClip = { viewModel.duplicateClip(it) },
+                                            onSplitClip = { viewModel.splitCurrentClipAtPlayhead() },
+                                            onOpenReorderDialog = { showReorderSheet = true },
+                                            onAddVideoClick = {
+                                                singleVideoPickerLauncher.launch(
+                                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly)
+                                                )
+                                            }
+                                        )
+                                    }
+
+                                    // Right: Filter Presets Gallery (from image.png)
+                                    Box(
+                                        modifier = Modifier
+                                            .width(230.dp)
+                                            .fillMaxHeight()
+                                            .border(1.dp, StudioLilacBorder)
+                                    ) {
+                                        FilterGalleryPanel(
+                                            currentFilter = activeClip?.filterType ?: com.example.data.model.FilterType.NONE,
+                                            onFilterSelect = { viewModel.updateFilter(it) }
+                                        )
+                                    }
+                                }
+                            } else {
+                                // Phone Vertical Studio Layout
+                                Column(modifier = Modifier.fillMaxSize()) {
+                                    // 1. Video Player Viewport with signature corner handles & floating toolbar
+                                    Box(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .fillMaxWidth()
+                                            .background(Color.Black),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        VideoPlayerView(
+                                            clip = activeClip,
+                                            aspectRatio = aspectRatio,
+                                            isPlaying = isPlaying,
+                                            onPlayPauseToggle = { viewModel.setIsPlaying(it) },
+                                            onQuickCutClick = { viewModel.splitCurrentClipAtPlayhead() },
+                                            onQuickSpeedClick = { /* speed */ },
+                                            onQuickAspectClick = {
+                                                val nextRatio = when (aspectRatio) {
+                                                    AspectRatioType.ORIGINAL -> AspectRatioType.RATIO_16_9
+                                                    AspectRatioType.RATIO_16_9 -> AspectRatioType.RATIO_9_16
+                                                    AspectRatioType.RATIO_9_16 -> AspectRatioType.RATIO_1_1
+                                                    AspectRatioType.RATIO_1_1 -> AspectRatioType.ORIGINAL
+                                                }
+                                                viewModel.setAspectRatio(nextRatio)
+                                            },
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+                                    }
+
+                                    // 2. Multi-track Timeline (ruler, text track, filmstrip clips with slow-mo badges, waveform)
+                                    StudioTimeline(
+                                        clips = clips,
+                                        selectedIndex = selectedIndex,
+                                        playbackPositionMs = playbackPosition,
+                                        isPlaying = isPlaying,
+                                        onPlayPauseToggle = { viewModel.setIsPlaying(it) },
+                                        onSelectClip = { viewModel.selectClip(it) },
+                                        onMoveClip = { from, to -> viewModel.moveClip(from, to) },
+                                        onDeleteClip = { viewModel.removeClip(it) },
+                                        onDuplicateClip = { viewModel.duplicateClip(it) },
+                                        onSplitClip = { viewModel.splitCurrentClipAtPlayhead() },
+                                        onOpenReorderDialog = { showReorderSheet = true },
+                                        onAddVideoClick = {
+                                            singleVideoPickerLauncher.launch(
+                                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly)
+                                            )
+                                        }
+                                    )
+
+                                    // 3. Tabbed Tools Panel (Filtreler 2-column grid, Medya, Hız & Yavaşlat, Kırp, vb.)
+                                    activeClip?.let { current ->
+                                        EditorToolPanels(
+                                            clip = current,
+                                            aspectRatio = aspectRatio,
+                                            clips = clips,
+                                            selectedIndex = selectedIndex,
+                                            onSelectClip = { viewModel.selectClip(it) },
+                                            onAddVideoClick = {
+                                                singleVideoPickerLauncher.launch(
+                                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly)
+                                                )
+                                            },
+                                            onAddSampleClick = {
+                                                viewModel.addSampleClip(context, isSecondClip = true)
+                                            },
+                                            onTrimChange = { start, end -> viewModel.updateTrim(start, end) },
+                                            onSpeedChange = { speed -> viewModel.updatePlaybackSpeed(speed) },
+                                            onSlowMoChange = { enabled, start, end, speed ->
+                                                viewModel.updateSlowMotion(enabled, start, end, speed)
+                                            },
+                                            onVolumeChange = { vol, muted -> viewModel.updateVolume(vol, muted) },
+                                            onFilterChange = { viewModel.updateFilter(it) },
+                                            onRotateClick = { viewModel.rotateClip() },
+                                            onMirrorClick = { viewModel.toggleMirror() },
+                                            onTextChange = { text, color, pos -> viewModel.updateTextOverlay(text, color, pos) },
+                                            onAspectRatioChange = { viewModel.setAspectRatio(it) },
+                                            onSplitClick = { viewModel.splitCurrentClipAtPlayhead() },
+                                            onExtractSlowMoSegment = { start, end, speed ->
+                                                viewModel.extractAndSlowDownSegment(selectedIndex, start, end, speed)
+                                            },
+                                            onDuplicateClick = { viewModel.duplicateClip(selectedIndex) }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Export Dialog (when exporting or completed)
+                    if (exportState.isExporting || exportState.isCompleted || exportState.errorMessage != null) {
+                        ExportDialog(
+                            exportState = exportState,
+                            onDismiss = { viewModel.dismissExport() }
+                        )
+                    }
+
+                    // Reorder and Merge Dialog
+                    if (showReorderSheet) {
+                        ReorderAndMergeDialog(
+                            clips = clips,
+                            sheetState = reorderSheetState,
+                            onDismiss = { showReorderSheet = false },
+                            onMoveClip = { from, to -> viewModel.moveClip(from, to) },
+                            onDuplicateClip = { viewModel.duplicateClip(it) },
+                            onDeleteClip = { viewModel.removeClip(it) },
+                            onStartExport = { viewModel.startExport(context) }
+                        )
+                    }
+
+                    // Title Edit Dialog
+                    if (showTitleDialog) {
+                        EditTitleDialog(
+                            currentTitle = projectTitle,
+                            onConfirm = {
+                                viewModel.setProjectTitle(it)
+                                showTitleDialog = false
                             },
-                            onVolumeChange = { vol, muted -> viewModel.updateVolume(vol, muted) },
-                            onFilterChange = { viewModel.updateFilter(it) },
-                            onRotateClick = { viewModel.rotateClip() },
-                            onMirrorClick = { viewModel.toggleMirror() },
-                            onTextChange = { text, color, pos -> viewModel.updateTextOverlay(text, color, pos) },
-                            onAspectRatioChange = { viewModel.setAspectRatio(it) },
-                            onSplitClick = { viewModel.splitCurrentClipAtPlayhead() },
-                            onExtractSlowMoSegment = { start, end, speed ->
-                                viewModel.extractAndSlowDownSegment(selectedIndex, start, end, speed)
-                            },
-                            onDuplicateClick = { viewModel.duplicateClip(selectedIndex) }
+                            onDismiss = { showTitleDialog = false }
+                        )
+                    }
+
+                    // Saved Projects & Export History BottomSheet
+                    if (showHistorySheet) {
+                        ProjectHistorySheet(
+                            projects = exportedProjects,
+                            sheetState = historySheetState,
+                            onDismiss = { showHistorySheet = false },
+                            onDeleteProject = { viewModel.deleteProject(it) }
                         )
                     }
                 }
-            }
-
-            // Export Dialog (when exporting or completed)
-            if (exportState.isExporting || exportState.isCompleted || exportState.errorMessage != null) {
-                ExportDialog(
-                    exportState = exportState,
-                    onDismiss = { viewModel.dismissExport() }
-                )
-            }
-
-            // Reorder and Merge Dialog
-            if (showReorderSheet) {
-                ReorderAndMergeDialog(
-                    clips = clips,
-                    sheetState = reorderSheetState,
-                    onDismiss = { showReorderSheet = false },
-                    onMoveClip = { from, to -> viewModel.moveClip(from, to) },
-                    onDuplicateClip = { viewModel.duplicateClip(it) },
-                    onDeleteClip = { viewModel.removeClip(it) },
-                    onStartExport = { viewModel.startExport(context) }
-                )
-            }
-
-            // Title Edit Dialog
-            if (showTitleDialog) {
-                EditTitleDialog(
-                    currentTitle = projectTitle,
-                    onConfirm = {
-                        viewModel.setProjectTitle(it)
-                        showTitleDialog = false
-                    },
-                    onDismiss = { showTitleDialog = false }
-                )
-            }
-
-            // Saved Projects & Export History BottomSheet
-            if (showHistorySheet) {
-                ProjectHistorySheet(
-                    projects = exportedProjects,
-                    sheetState = historySheetState,
-                    onDismiss = { showHistorySheet = false },
-                    onDeleteProject = { viewModel.deleteProject(it) }
-                )
             }
         }
     }
@@ -343,13 +543,13 @@ fun EmptyStateView(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        // Hero visual banner
+        // Hero visual banner with signature purple glow
         Box(
             modifier = Modifier
                 .size(100.dp)
                 .background(
                     brush = Brush.radialGradient(
-                        colors = listOf(PrimaryNeon.copy(alpha = 0.4f), Color.Transparent)
+                        colors = listOf(StudioPurplePrimary.copy(alpha = 0.35f), Color.Transparent)
                     ),
                     shape = CircleShape
                 ),
@@ -358,13 +558,14 @@ fun EmptyStateView(
             Box(
                 modifier = Modifier
                     .size(72.dp)
-                    .background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
+                    .background(StudioPurplePrimary.copy(alpha = 0.15f), CircleShape)
+                    .border(1.5.dp, StudioPurplePrimary, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Default.Movie,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
+                    tint = StudioPurplePrimary,
                     modifier = Modifier.size(38.dp)
                 )
             }
@@ -373,92 +574,80 @@ fun EmptyStateView(
         Spacer(modifier = Modifier.height(20.dp))
 
         Text(
-            text = "KlipStudio Video Düzenleyici",
-            color = Color.White,
+            text = "KlipStudio Video Editör",
+            color = MaterialTheme.colorScheme.onSurface,
             fontSize = 22.sp,
-            fontWeight = FontWeight.Bold,
-            textAlign = TextAlign.Center
+            fontWeight = FontWeight.Bold
         )
 
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text = "Videolarını kırp, ağır çekim ile yavaşlat,\nbirden fazla klibi birleştir ve telefona kaydet.",
-            color = Color.LightGray,
-            fontSize = 14.sp,
+            text = "Videoları kırpın, kesin, dilediğiniz sırada birleştirin,\nistediğiniz kısımları ayırarak ağır çekim yapın!",
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontSize = 13.sp,
             textAlign = TextAlign.Center,
-            lineHeight = 20.sp
+            lineHeight = 18.sp
         )
 
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(28.dp))
 
-        if (isGenerating) {
-            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-            Spacer(modifier = Modifier.height(12.dp))
-            Text("Örnek video hazırlanıyor...", color = Color.LightGray, fontSize = 13.sp)
-        } else {
-            // Action 1: Pick from phone
+        // Action Buttons
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Button(
                 onClick = onPickVideos,
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp)
-                    .testTag("pick_videos_main_button"),
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                    .height(44.dp)
+                    .testTag("pick_videos_button"),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = StudioPurplePrimary
+                ),
+                shape = RoundedCornerShape(10.dp)
             ) {
-                Icon(imageVector = Icons.Default.Add, contentDescription = null)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Galeriden Video Seç", fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Video Seç", fontWeight = FontWeight.Bold, fontSize = 13.sp)
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
-
-            // Action 2: Start with sample video (perfect for emulators & immediate test!)
-            Card(
+            Button(
+                onClick = onAddSample,
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onAddSample() }
-                    .testTag("sample_video_card"),
-                colors = CardDefaults.cardColors(containerColor = StudioCardBg),
-                shape = RoundedCornerShape(12.dp)
+                    .height(44.dp)
+                    .testTag("add_sample_video_button"),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    contentColor = MaterialTheme.colorScheme.onSurface
+                ),
+                shape = RoundedCornerShape(10.dp),
+                enabled = !isGenerating
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .background(SecondaryCyan.copy(alpha = 0.2f), CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.AutoAwesome,
-                            contentDescription = null,
-                            tint = SecondaryCyan,
-                            modifier = Modifier.size(22.dp)
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(14.dp))
-
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Örnek Video İle Başla",
-                            color = Color.White,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "Telefonda video yoksa hemen test et",
-                            color = Color.Gray,
-                            fontSize = 12.sp
-                        )
-                    }
+                if (isGenerating) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        strokeWidth = 2.dp,
+                        color = StudioPurplePrimary
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.AutoAwesome,
+                        contentDescription = null,
+                        tint = StudioPurplePrimary,
+                        modifier = Modifier.size(16.dp)
+                    )
                 }
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = if (isGenerating) "Yükleniyor..." else "Örnek Video",
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 13.sp
+                )
             }
         }
     }
@@ -470,22 +659,32 @@ fun EditTitleDialog(
     onConfirm: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
-    var title by remember { mutableStateOf(currentTitle) }
+    var text by remember { mutableStateOf(currentTitle) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Proje Başlığı") },
+        title = {
+            Text(
+                text = "Proje Başlığını Düzenle",
+                color = MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.Bold,
+                fontSize = 16.sp
+            )
+        },
         text = {
             OutlinedTextField(
-                value = title,
-                onValueChange = { title = it },
-                label = { Text("Video Adı") },
+                value = text,
+                onValueChange = { text = it },
+                label = { Text("Proje Adı") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
         },
         confirmButton = {
-            Button(onClick = { onConfirm(title.ifBlank { "KlipStudio_Proje" }) }) {
+            Button(
+                onClick = { onConfirm(text.trim().ifBlank { currentTitle }) },
+                colors = ButtonDefaults.buttonColors(containerColor = StudioPurplePrimary)
+            ) {
                 Text("Kaydet")
             }
         },

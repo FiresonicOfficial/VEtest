@@ -67,13 +67,16 @@ import com.example.ui.theme.SecondaryCyan
 import com.example.ui.theme.StudioBorder
 import com.example.ui.theme.StudioCardBg
 
+import androidx.compose.material.icons.filled.VideoLibrary
+
 enum class EditorTab(val title: String, val icon: androidx.compose.ui.graphics.vector.ImageVector) {
-    TRIM("Kırp", Icons.Default.ContentCut),
-    SPEED("Yavaşlat & Hız", Icons.Default.Speed),
     FILTERS("Filtreler", Icons.Default.ColorLens),
+    MEDIA("Medya", Icons.Default.VideoLibrary),
+    SPEED("Hız & Yavaşlat", Icons.Default.Speed),
+    TRIM("Kırp & Kes", Icons.Default.ContentCut),
+    TEXT("Yazı", Icons.Default.TextFields),
     AUDIO("Ses", Icons.Default.VolumeUp),
     TRANSFORM("Döndür", Icons.Default.RotateRight),
-    TEXT("Yazı", Icons.Default.TextFields),
     RATIO("En-Boy", Icons.Default.AspectRatio)
 }
 
@@ -81,6 +84,11 @@ enum class EditorTab(val title: String, val icon: androidx.compose.ui.graphics.v
 fun EditorToolPanels(
     clip: VideoClip,
     aspectRatio: AspectRatioType,
+    clips: List<VideoClip> = emptyList(),
+    selectedIndex: Int = 0,
+    onSelectClip: (Int) -> Unit = {},
+    onAddVideoClick: () -> Unit = {},
+    onAddSampleClick: () -> Unit = {},
     onTrimChange: (startMs: Long, endMs: Long) -> Unit,
     onSpeedChange: (Float) -> Unit,
     onSlowMoChange: (enabled: Boolean, startMs: Long?, endMs: Long?, speed: Float?) -> Unit,
@@ -101,7 +109,8 @@ fun EditorToolPanels(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .background(StudioCardBg)
+            .background(MaterialTheme.colorScheme.surface)
+            .border(1.dp, MaterialTheme.colorScheme.outline)
     ) {
         // Tab Bar
         ScrollableTabRow(
@@ -137,17 +146,25 @@ fun EditorToolPanels(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(190.dp)
-                .padding(12.dp)
+                .height(200.dp)
+                .padding(10.dp)
                 .verticalScroll(rememberScrollState())
         ) {
             when (tabs[selectedTab]) {
-                EditorTab.TRIM -> {
-                    TrimScrubber(
-                        clip = clip,
-                        onTrimChange = onTrimChange,
-                        onSplitCurrentPlayhead = onSplitClick,
-                        onDuplicateClip = onDuplicateClick
+                EditorTab.FILTERS -> {
+                    FilterGalleryPanel(
+                        currentFilter = clip.filterType,
+                        onFilterSelect = onFilterChange
+                    )
+                }
+
+                EditorTab.MEDIA -> {
+                    MediaLibraryPanel(
+                        clips = clips,
+                        selectedIndex = selectedIndex,
+                        onSelectClip = onSelectClip,
+                        onAddVideoClick = onAddVideoClick,
+                        onAddSampleClick = onAddSampleClick
                     )
                 }
 
@@ -160,10 +177,12 @@ fun EditorToolPanels(
                     )
                 }
 
-                EditorTab.FILTERS -> {
-                    FiltersPanel(
-                        currentFilter = clip.filterType,
-                        onFilterSelect = onFilterChange
+                EditorTab.TRIM -> {
+                    TrimScrubber(
+                        clip = clip,
+                        onTrimChange = onTrimChange,
+                        onSplitCurrentPlayhead = onSplitClick,
+                        onDuplicateClip = onDuplicateClick
                     )
                 }
 

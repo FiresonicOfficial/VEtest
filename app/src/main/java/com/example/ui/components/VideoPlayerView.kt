@@ -12,6 +12,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -56,6 +57,13 @@ import com.example.data.model.AspectRatioType
 import com.example.data.model.FilterType
 import com.example.data.model.TextPosition
 import com.example.data.model.VideoClip
+import com.example.ui.theme.StudioCornerBracket
+import com.example.ui.theme.StudioPurplePrimary
+import androidx.compose.foundation.border
+import androidx.compose.material.icons.filled.AspectRatio
+import androidx.compose.material.icons.filled.ColorLens
+import androidx.compose.material.icons.filled.ContentCut
+import androidx.compose.material.icons.filled.Speed
 import kotlinx.coroutines.delay
 
 @Composable
@@ -64,6 +72,10 @@ fun VideoPlayerView(
     aspectRatio: AspectRatioType,
     isPlaying: Boolean,
     onPlayPauseToggle: (Boolean) -> Unit,
+    onQuickCutClick: (() -> Unit)? = null,
+    onQuickSpeedClick: (() -> Unit)? = null,
+    onQuickAspectClick: (() -> Unit)? = null,
+    onQuickFilterClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     var videoViewRef by remember { mutableStateOf<VideoView?>(null) }
@@ -125,7 +137,8 @@ fun VideoPlayerView(
             modifier = ratioModifier
                 .rotate(clip.rotationDegrees.toFloat())
                 .scale(scaleX = if (clip.isMirrored) -1f else 1f, scaleY = 1f)
-                .clip(RoundedCornerShape(8.dp)),
+                .clip(RoundedCornerShape(8.dp))
+                .border(1.5.dp, StudioCornerBracket.copy(alpha = 0.8f), RoundedCornerShape(8.dp)),
             contentAlignment = Alignment.Center
         ) {
             androidx.compose.runtime.key(clip.id) {
@@ -189,6 +202,50 @@ fun VideoPlayerView(
 
             // Live Filter Tint Overlay
             FilterOverlay(filter = clip.filterType)
+
+            // 4 Corner Selection Bracket Handles (from image.png)
+            Box(modifier = Modifier.align(Alignment.TopStart).padding(4.dp).size(12.dp).background(Color.White, RoundedCornerShape(2.dp)).border(2.dp, StudioCornerBracket, RoundedCornerShape(2.dp)))
+            Box(modifier = Modifier.align(Alignment.TopEnd).padding(4.dp).size(12.dp).background(Color.White, RoundedCornerShape(2.dp)).border(2.dp, StudioCornerBracket, RoundedCornerShape(2.dp)))
+            Box(modifier = Modifier.align(Alignment.BottomStart).padding(4.dp).size(12.dp).background(Color.White, RoundedCornerShape(2.dp)).border(2.dp, StudioCornerBracket, RoundedCornerShape(2.dp)))
+            Box(modifier = Modifier.align(Alignment.BottomEnd).padding(4.dp).size(12.dp).background(Color.White, RoundedCornerShape(2.dp)).border(2.dp, StudioCornerBracket, RoundedCornerShape(2.dp)))
+
+            // Floating Quick Tools Pill above Video (from image.png)
+            Surface(
+                color = Color.White.copy(alpha = 0.95f),
+                shape = RoundedCornerShape(20.dp),
+                shadowElevation = 6.dp,
+                border = androidx.compose.foundation.BorderStroke(1.dp, StudioCornerBracket.copy(alpha = 0.3f)),
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 10.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                    horizontalArrangement = Arrangement.spacedBy(2.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (onQuickAspectClick != null) {
+                        IconButton(onClick = onQuickAspectClick, modifier = Modifier.size(28.dp)) {
+                            Icon(Icons.Default.AspectRatio, contentDescription = "En-Boy", tint = StudioPurplePrimary, modifier = Modifier.size(15.dp))
+                        }
+                    }
+                    if (onQuickCutClick != null) {
+                        IconButton(onClick = onQuickCutClick, modifier = Modifier.size(28.dp)) {
+                            Icon(Icons.Default.ContentCut, contentDescription = "Kes", tint = StudioPurplePrimary, modifier = Modifier.size(15.dp))
+                        }
+                    }
+                    if (onQuickSpeedClick != null) {
+                        IconButton(onClick = onQuickSpeedClick, modifier = Modifier.size(28.dp)) {
+                            Icon(Icons.Default.Speed, contentDescription = "Hız", tint = StudioPurplePrimary, modifier = Modifier.size(15.dp))
+                        }
+                    }
+                    if (onQuickFilterClick != null) {
+                        IconButton(onClick = onQuickFilterClick, modifier = Modifier.size(28.dp)) {
+                            Icon(Icons.Default.ColorLens, contentDescription = "Filtre", tint = StudioPurplePrimary, modifier = Modifier.size(15.dp))
+                        }
+                    }
+                }
+            }
 
             // Live Text Watermark Overlay
             if (clip.overlayText.isNotBlank()) {
@@ -330,11 +387,17 @@ fun VideoPlayerView(
 fun FilterOverlay(filter: FilterType) {
     val overlayColor = when (filter) {
         FilterType.NONE -> Color.Transparent
-        FilterType.BW -> Color(0x33555555)
-        FilterType.SEPIA -> Color(0x44D97706) // Vintage Amber
-        FilterType.VIVID -> Color(0x228B5CF6) // Neon saturation
-        FilterType.COOL -> Color(0x330284C7) // Cinematic Teal
-        FilterType.WARM -> Color(0x33F97316) // Sunset Orange
+        FilterType.COOL -> Color(0x330284C7)
+        FilterType.TEAL -> Color(0x330D9488)
+        FilterType.WARM -> Color(0x33F97316)
+        FilterType.VIVID -> Color(0x228B5CF6)
+        FilterType.SEPIA -> Color(0x44D97706)
+        FilterType.CYBERPUNK -> Color(0x33A855F7)
+        FilterType.EMERALD -> Color(0x33059669)
+        FilterType.BW -> Color(0x44334155)
+        FilterType.HIGH_CONTRAST -> Color(0x33000000)
+        FilterType.PASTEL -> Color(0x26F472B6)
+        FilterType.GOLDEN -> Color(0x33CA8A04)
     }
     if (overlayColor != Color.Transparent) {
         Box(

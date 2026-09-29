@@ -9,10 +9,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
 private val DarkColorScheme = darkColorScheme(
-    primary = PrimaryNeonLight,
+    primary = StudioPurplePrimary,
     onPrimary = Color.White,
-    primaryContainer = Color(0xFF312E81),
-    onPrimaryContainer = Color(0xFFE0E7FF),
+    primaryContainer = Color(0xFF4C1D95),
+    onPrimaryContainer = Color(0xFFEDE9FE),
     secondary = SecondaryCyanLight,
     onSecondary = Color(0xFF082F49),
     secondaryContainer = Color(0xFF164E63),
@@ -20,34 +20,34 @@ private val DarkColorScheme = darkColorScheme(
     tertiary = AccentAmber,
     onTertiary = Color.Black,
     background = StudioDarkBg,
-    onBackground = TextPrimary,
+    onBackground = Color(0xFFF8FAFC),
     surface = StudioCardBg,
-    onSurface = TextPrimary,
+    onSurface = Color(0xFFF8FAFC),
     surfaceVariant = StudioCardHover,
-    onSurfaceVariant = TextSecondary,
+    onSurfaceVariant = Color(0xFFCBD5E1),
     outline = StudioBorder,
     error = AccentRose,
     onError = Color.White
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = PrimaryNeon,
+    primary = StudioPurplePrimary,
     onPrimary = Color.White,
-    primaryContainer = Color(0xFFEEF2FF),
-    onPrimaryContainer = Color(0xFF1E1B4B),
+    primaryContainer = Color(0xFFEDE9FE),
+    onPrimaryContainer = Color(0xFF4C1D95),
     secondary = SecondaryCyan,
     onSecondary = Color.White,
     secondaryContainer = Color(0xFFE0F2FE),
     onSecondaryContainer = Color(0xFF0369A1),
     tertiary = AccentAmber,
     onTertiary = Color.Black,
-    background = Color(0xFF0F172A), // Keep studio cinematic look even on light
-    onBackground = Color(0xFFF8FAFC),
-    surface = Color(0xFF1E293B),
-    onSurface = Color(0xFFF8FAFC),
-    surfaceVariant = Color(0xFF334155),
-    onSurfaceVariant = Color(0xFFCBD5E1),
-    outline = Color(0xFF475569),
+    background = StudioLilacBg,
+    onBackground = Color(0xFF1E1B4B),
+    surface = StudioLilacSurface,
+    onSurface = Color(0xFF1E1B4B),
+    surfaceVariant = Color(0xFFF5F3FF),
+    onSurfaceVariant = Color(0xFF6B7280),
+    outline = StudioLilacBorder,
     error = AccentRose,
     onError = Color.White
 )
